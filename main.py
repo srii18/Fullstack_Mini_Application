@@ -1,5 +1,6 @@
 from fastapi import FastAPI, File, UploadFile, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from contextlib import asynccontextmanager
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -7,15 +8,20 @@ import os
 import shutil
 from datetime import datetime
 import logging
+import json
+import csv
+import io
 
 # Import our modules
 from models.database import get_db, create_tables, Receipt
 from schemas.receipt_schemas import (
     ReceiptResponse, ReceiptCreate, ReceiptUpdate, 
-    SearchFilters, SortOptions, AggregationResponse
+    SearchFilters, SortOptions, AggregationResponse,
+    ManualCorrectionRequest, ExportRequest, CurrencyInfo
 )
 from services.ocr_service import OCRService
 from services.text_parser import TextParser
+from services.currency_service import CurrencyService
 from algorithms.search_algorithms import SearchAlgorithms
 from algorithms.sort_algorithms import SortAlgorithms
 from algorithms.aggregation_algorithms import AggregationAlgorithms
@@ -56,6 +62,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 # Initialize services
 ocr_service = OCRService()
 text_parser = TextParser()
+currency_service = CurrencyService()
 
 @app.get("/")
 async def root():
@@ -192,21 +199,66 @@ async def update_receipt(
     db.refresh(receipt)
     return receipt
 
+@app.post("/receipts/{receipt_id}/correct")
+async def manual_correction(
+    receipt_id: int,
+    correction: ManualCorrectionRequest,
+    db: Session = Depends(get_db)
+):
+    """Apply manual corrections to receipt fields"""
+    try:
+        receipt = db.query(Receipt).filter(Receipt.id == receipt_id).first()
+        if not receipt:
+            raise HTTPException(status_code=404, detail="Receipt not found")
+        
+        # Apply corrections
+        if correction.vendor is not None:
+            receipt.vendor = correction.vendor
+        if correction.transaction_date is not None:
+            receipt.transaction_date = correction.transaction_date
+        if correction.amount is not None:
+            receipt.amount = correction.amount
+        if correction.category is not None:
+            receipt.category = correction.category
+        
+        # Add correction notes to error_message field for tracking
+        if correction.notes:
+            receipt.error_message = f"Manual correction: {correction.notes}"
+        
+        # Mark as manually corrected
+        receipt.processing_status = "processed"
+        
+        db.commit()
+        db.refresh(receipt)
+        
+        logger.info(f"Manual correction applied to receipt {receipt_id}")
+        return ReceiptResponse.from_orm(receipt)
+        
+    except Exception as e:
+        logger.error(f"Manual correction error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Manual correction failed: {str(e)}")
+
 @app.delete("/receipts/{receipt_id}")
 async def delete_receipt(receipt_id: int, db: Session = Depends(get_db)):
     """Delete receipt"""
-    receipt = db.query(Receipt).filter(Receipt.id == receipt_id).first()
-    if not receipt:
-        raise HTTPException(status_code=404, detail="Receipt not found")
-    
-    # Delete file if exists
-    file_path = os.path.join(UPLOAD_DIR, receipt.filename)
-    if os.path.exists(file_path):
-        os.remove(file_path)
-    
-    db.delete(receipt)
-    db.commit()
-    return {"message": "Receipt deleted successfully"}
+    try:
+        receipt = db.query(Receipt).filter(Receipt.id == receipt_id).first()
+        if not receipt:
+            raise HTTPException(status_code=404, detail="Receipt not found")
+        
+        # Delete file if it exists
+        if receipt.filename and os.path.exists(os.path.join(UPLOAD_DIR, receipt.filename)):
+            os.remove(os.path.join(UPLOAD_DIR, receipt.filename))
+        
+        db.delete(receipt)
+        db.commit()
+        
+        logger.info(f"Receipt {receipt_id} deleted successfully")
+        return {"message": "Receipt deleted successfully"}
+        
+    except Exception as e:
+        logger.error(f"Delete error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Delete failed: {str(e)}")
 
 @app.post("/receipts/search", response_model=List[ReceiptResponse])
 async def search_receipts(
@@ -312,6 +364,156 @@ async def get_category_analytics(db: Session = Depends(get_db)):
         "category_distribution": agg_algo.category_frequency_distribution(receipts),
         "amount_histogram": agg_algo.amount_distribution_histogram(receipts)
     }
+
+@app.post("/receipts/export")
+async def export_receipts(
+    export_request: ExportRequest,
+    db: Session = Depends(get_db)
+):
+    """Export receipts as CSV or JSON"""
+    try:
+        # Get receipts based on filters
+        query = db.query(Receipt).filter(Receipt.processing_status == "processed")
+        
+        if export_request.filters:
+            filters = export_request.filters
+            if filters.vendor:
+                query = query.filter(Receipt.vendor.ilike(f"%{filters.vendor}%"))
+            if filters.category:
+                query = query.filter(Receipt.category.ilike(f"%{filters.category}%"))
+            if filters.min_amount is not None:
+                query = query.filter(Receipt.amount >= filters.min_amount)
+            if filters.max_amount is not None:
+                query = query.filter(Receipt.amount <= filters.max_amount)
+            if filters.start_date:
+                query = query.filter(Receipt.transaction_date >= filters.start_date)
+            if filters.end_date:
+                query = query.filter(Receipt.transaction_date <= filters.end_date)
+        
+        receipts = query.all()
+        
+        # Define default fields
+        default_fields = ['id', 'filename', 'vendor', 'transaction_date', 'amount', 'category', 'upload_date']
+        fields = export_request.include_fields or default_fields
+        
+        if export_request.format == "csv":
+            # Create CSV
+            output = io.StringIO()
+            writer = csv.writer(output)
+            
+            # Write header
+            writer.writerow(fields)
+            
+            # Write data
+            for receipt in receipts:
+                row = []
+                for field in fields:
+                    value = getattr(receipt, field, '')
+                    if isinstance(value, datetime):
+                        value = value.isoformat()
+                    row.append(value)
+                writer.writerow(row)
+            
+            # Create response
+            output.seek(0)
+            return StreamingResponse(
+                io.BytesIO(output.getvalue().encode('utf-8')),
+                media_type="text/csv",
+                headers={"Content-Disposition": "attachment; filename=receipts.csv"}
+            )
+        
+        elif export_request.format == "json":
+            # Create JSON
+            data = []
+            for receipt in receipts:
+                item = {}
+                for field in fields:
+                    value = getattr(receipt, field, None)
+                    if isinstance(value, datetime):
+                        value = value.isoformat()
+                    item[field] = value
+                data.append(item)
+            
+            json_str = json.dumps(data, indent=2, default=str)
+            return StreamingResponse(
+                io.BytesIO(json_str.encode('utf-8')),
+                media_type="application/json",
+                headers={"Content-Disposition": "attachment; filename=receipts.json"}
+            )
+        
+    except Exception as e:
+        logger.error(f"Export error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
+
+@app.get("/currency/supported")
+async def get_supported_currencies():
+    """Get list of supported currencies"""
+    try:
+        currencies = currency_service.get_supported_currencies()
+        return {
+            "supported_currencies": currencies,
+            "default_base": "USD"
+        }
+    except Exception as e:
+        logger.error(f"Failed to get supported currencies: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to get supported currencies")
+
+@app.post("/currency/convert")
+async def convert_currency(
+    amount: float,
+    from_currency: str,
+    to_currency: str = "USD"
+):
+    """Convert amount between currencies"""
+    try:
+        converted_amount = currency_service.convert_currency(amount, from_currency, to_currency)
+        
+        if converted_amount is None:
+            raise HTTPException(status_code=400, detail="Currency conversion failed")
+        
+        # Get exchange rate
+        exchange_rate = converted_amount / amount if amount > 0 else 0
+        
+        return {
+            "original_amount": amount,
+            "original_currency": from_currency,
+            "converted_amount": converted_amount,
+            "target_currency": to_currency,
+            "exchange_rate": exchange_rate,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Currency conversion error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Currency conversion failed: {str(e)}")
+
+@app.post("/receipts/{receipt_id}/currency-info")
+async def get_receipt_currency_info(
+    receipt_id: int,
+    target_currency: str = "USD",
+    db: Session = Depends(get_db)
+):
+    """Get currency information for a specific receipt"""
+    try:
+        receipt = db.query(Receipt).filter(Receipt.id == receipt_id).first()
+        if not receipt:
+            raise HTTPException(status_code=404, detail="Receipt not found")
+        
+        if not receipt.raw_text:
+            raise HTTPException(status_code=400, detail="No text available for currency analysis")
+        
+        # Detect and convert currency
+        currency_info = currency_service.detect_and_convert_currency(receipt.raw_text, target_currency)
+        
+        return {
+            "receipt_id": receipt_id,
+            "currency_analysis": currency_info,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Currency analysis error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Currency analysis failed: {str(e)}")
 
 @app.get("/health")
 async def health_check():

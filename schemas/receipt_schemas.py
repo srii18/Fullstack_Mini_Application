@@ -86,6 +86,28 @@ class SortOptions(BaseModel):
     field: str = Field(..., pattern="^(upload_date|transaction_date|amount|vendor|category)$")
     direction: str = Field("asc", pattern="^(asc|desc)$")
 
+class ManualCorrectionRequest(BaseModel):
+    """Schema for manual field corrections"""
+    vendor: Optional[str] = Field(None, max_length=255)
+    transaction_date: Optional[datetime] = None
+    amount: Optional[float] = Field(None, ge=0)
+    category: Optional[str] = Field(None, max_length=100)
+    notes: Optional[str] = Field(None, max_length=500)
+    
+class ExportRequest(BaseModel):
+    """Schema for export requests"""
+    format: str = Field(..., pattern="^(csv|json)$")
+    filters: Optional[SearchFilters] = None
+    include_fields: Optional[List[str]] = None
+    
+class CurrencyInfo(BaseModel):
+    """Schema for currency information"""
+    currency_code: str = Field(..., max_length=3)  # USD, EUR, etc.
+    symbol: str = Field(..., max_length=5)  # $, €, etc.
+    amount: float = Field(..., ge=0)
+    exchange_rate: Optional[float] = Field(None, gt=0)
+    base_currency_amount: Optional[float] = Field(None, ge=0)
+
 class AggregationResponse(BaseModel):
     """Schema for aggregation results"""
     total_receipts: int

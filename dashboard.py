@@ -85,6 +85,31 @@ def search_receipts(filters):
     except:
         return []
 
+def apply_manual_correction(receipt_id, correction_data):
+    """Apply manual corrections to a receipt"""
+    try:
+        response = requests.post(f"{API_BASE_URL}/receipts/{receipt_id}/correct", json=correction_data)
+        return response.json() if response.status_code == 200 else None
+    except Exception as e:
+        st.error(f"Correction failed: {str(e)}")
+        return None
+
+def export_receipts(export_format, filters=None, fields=None):
+    """Export receipts as CSV or JSON"""
+    try:
+        export_data = {
+            "format": export_format,
+            "filters": filters,
+            "include_fields": fields
+        }
+        response = requests.post(f"{API_BASE_URL}/receipts/export", json=export_data)
+        if response.status_code == 200:
+            return response.content
+        return None
+    except Exception as e:
+        st.error(f"Export failed: {str(e)}")
+        return None
+
 def main():
     """Main dashboard application"""
     
@@ -101,7 +126,7 @@ def main():
     st.sidebar.title("Navigation")
     page = st.sidebar.selectbox(
         "Choose a page",
-        ["📤 Upload", "📋 View Receipts", "🔍 Search", "📊 Analytics"]
+        ["📤 Upload", "📋 View Receipts", "🔍 Search", "✏️ Manual Correction", "📥 Export Data", "📊 Analytics"]
     )
     
     if page == "📤 Upload":
@@ -110,6 +135,10 @@ def main():
         view_receipts_page()
     elif page == "🔍 Search":
         search_page()
+    elif page == "✏️ Manual Correction":
+        manual_correction_page()
+    elif page == "📥 Export Data":
+        export_page()
     elif page == "📊 Analytics":
         analytics_page()
 
@@ -334,6 +363,208 @@ def search_page():
                     
             except Exception as e:
                 st.error(f"Search failed: {str(e)}")
+
+def manual_correction_page():
+    """Manual correction page for editing receipt fields"""
+    st.header("✏️ Manual Field Correction")
+    
+    st.markdown("""
+    <div class="upload-section">
+        <h3>🔧 Correct Receipt Data</h3>
+        <p>Select a receipt and manually correct any parsing errors</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Get all receipts
+    receipts = get_receipts()
+    
+    if not receipts:
+        st.warning("No receipts found. Please upload some receipts first.")
+        return
+    
+    # Receipt selection
+    receipt_options = {f"ID {r['id']}: {r['filename']} - {r.get('vendor', 'Unknown')}": r for r in receipts}
+    selected_receipt_key = st.selectbox("Select Receipt to Correct:", list(receipt_options.keys()))
+    
+    if selected_receipt_key:
+        selected_receipt = receipt_options[selected_receipt_key]
+        
+        st.subheader(f"Editing Receipt: {selected_receipt['filename']}")
+        
+        # Display current values and correction form
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("**Current Values:**")
+            st.info(f"**Vendor:** {selected_receipt.get('vendor', 'Not detected')}")
+            st.info(f"**Amount:** ${selected_receipt.get('amount', 'Not detected')}")
+            st.info(f"**Date:** {selected_receipt.get('transaction_date', 'Not detected')}")
+            st.info(f"**Category:** {selected_receipt.get('category', 'Not detected')}")
+            st.info(f"**Status:** {selected_receipt.get('processing_status', 'Unknown')}")
+        
+        with col2:
+            st.markdown("**Corrections:**")
+            
+            # Correction form
+            with st.form(f"correction_form_{selected_receipt['id']}"):
+                new_vendor = st.text_input("Vendor Name:", value=selected_receipt.get('vendor', ''))
+                new_amount = st.number_input("Amount:", min_value=0.0, value=float(selected_receipt.get('amount', 0) or 0), step=0.01)
+                
+                # Date input
+                current_date = None
+                if selected_receipt.get('transaction_date'):
+                    try:
+                        current_date = datetime.fromisoformat(selected_receipt['transaction_date'].replace('Z', '+00:00')).date()
+                    except:
+                        current_date = None
+                
+                new_date = st.date_input("Transaction Date:", value=current_date)
+                
+                # Category selection
+                categories = ['grocery', 'dining', 'utilities', 'transportation', 'healthcare', 'retail', 'other']
+                current_category = selected_receipt.get('category', 'other')
+                if current_category not in categories:
+                    categories.append(current_category)
+                
+                new_category = st.selectbox("Category:", categories, index=categories.index(current_category) if current_category in categories else 0)
+                
+                notes = st.text_area("Correction Notes:", placeholder="Optional notes about the corrections made...")
+                
+                submitted = st.form_submit_button("Apply Corrections", type="primary")
+                
+                if submitted:
+                    correction_data = {
+                        "vendor": new_vendor if new_vendor != selected_receipt.get('vendor', '') else None,
+                        "amount": new_amount if new_amount != float(selected_receipt.get('amount', 0) or 0) else None,
+                        "transaction_date": new_date.isoformat() if new_date != current_date else None,
+                        "category": new_category if new_category != selected_receipt.get('category', '') else None,
+                        "notes": notes if notes else None
+                    }
+                    
+                    # Remove None values
+                    correction_data = {k: v for k, v in correction_data.items() if v is not None}
+                    
+                    if correction_data:
+                        result = apply_manual_correction(selected_receipt['id'], correction_data)
+                        if result:
+                            st.success("✅ Corrections applied successfully!")
+                            st.rerun()
+                        else:
+                            st.error("❌ Failed to apply corrections. Please try again.")
+                    else:
+                        st.warning("No changes detected.")
+        
+        # Display raw text for reference
+        if selected_receipt.get('raw_text'):
+            with st.expander("📄 View Raw Text (for reference)"):
+                st.text(selected_receipt['raw_text'])
+
+def export_page():
+    """Export data page"""
+    st.header("📥 Export Receipt Data")
+    
+    st.markdown("""
+    <div class="upload-section">
+        <h3>💾 Export Your Data</h3>
+        <p>Export receipt data as CSV or JSON with optional filtering</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Export format selection
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        export_format = st.selectbox("Export Format:", ["csv", "json"])
+    
+    with col2:
+        # Field selection
+        available_fields = ['id', 'filename', 'vendor', 'transaction_date', 'amount', 'category', 'upload_date', 'confidence_score', 'processing_status']
+        selected_fields = st.multiselect("Fields to Include:", available_fields, default=['id', 'filename', 'vendor', 'transaction_date', 'amount', 'category'])
+    
+    # Filters section
+    st.subheader("🔍 Export Filters (Optional)")
+    
+    filter_col1, filter_col2, filter_col3 = st.columns(3)
+    
+    with filter_col1:
+        filter_vendor = st.text_input("Vendor (contains):")
+        filter_category = st.selectbox("Category:", ['', 'grocery', 'dining', 'utilities', 'transportation', 'healthcare', 'retail', 'other'])
+    
+    with filter_col2:
+        filter_min_amount = st.number_input("Min Amount:", min_value=0.0, value=0.0, step=0.01)
+        filter_max_amount = st.number_input("Max Amount:", min_value=0.0, value=10000.0, step=0.01)
+    
+    with filter_col3:
+        filter_start_date = st.date_input("Start Date:", value=None)
+        filter_end_date = st.date_input("End Date:", value=None)
+    
+    # Build filters
+    filters = {}
+    if filter_vendor:
+        filters['vendor'] = filter_vendor
+    if filter_category:
+        filters['category'] = filter_category
+    if filter_min_amount > 0:
+        filters['min_amount'] = filter_min_amount
+    if filter_max_amount < 10000:
+        filters['max_amount'] = filter_max_amount
+    if filter_start_date:
+        filters['start_date'] = filter_start_date.isoformat()
+    if filter_end_date:
+        filters['end_date'] = filter_end_date.isoformat()
+    
+    # Export button
+    if st.button("📥 Export Data", type="primary"):
+        with st.spinner("Generating export..."):
+            export_data = export_receipts(
+                export_format=export_format,
+                filters=filters if filters else None,
+                fields=selected_fields if selected_fields else None
+            )
+            
+            if export_data:
+                filename = f"receipts_export.{export_format}"
+                mime_type = "text/csv" if export_format == "csv" else "application/json"
+                
+                st.download_button(
+                    label=f"💾 Download {export_format.upper()} File",
+                    data=export_data,
+                    file_name=filename,
+                    mime=mime_type
+                )
+                st.success(f"✅ Export ready! Click the download button above to save your {export_format.upper()} file.")
+            else:
+                st.error("❌ Export failed. Please try again.")
+    
+    # Preview section
+    st.subheader("👀 Data Preview")
+    receipts = get_receipts()
+    if receipts:
+        # Apply filters for preview
+        filtered_receipts = receipts
+        if filters:
+            # Simple client-side filtering for preview
+            if 'vendor' in filters:
+                filtered_receipts = [r for r in filtered_receipts if filters['vendor'].lower() in (r.get('vendor', '') or '').lower()]
+            if 'category' in filters:
+                filtered_receipts = [r for r in filtered_receipts if r.get('category') == filters['category']]
+        
+        st.info(f"Found {len(filtered_receipts)} receipts matching your criteria")
+        
+        if filtered_receipts:
+            # Show first few records as preview
+            preview_data = []
+            for receipt in filtered_receipts[:5]:  # Show first 5
+                row = {}
+                for field in (selected_fields or available_fields):
+                    row[field] = receipt.get(field, '')
+                preview_data.append(row)
+            
+            df = pd.DataFrame(preview_data)
+            st.dataframe(df, use_container_width=True)
+            
+            if len(filtered_receipts) > 5:
+                st.info(f"Showing first 5 records. Total: {len(filtered_receipts)} records will be exported.")
 
 def analytics_page():
     """Analytics and visualizations page"""

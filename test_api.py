@@ -54,40 +54,53 @@ def test_search_functionality():
     
     # Test 1: Search by vendor
     print("   Testing vendor search...")
-    search_filters = {"vendor": "Walmart"}
     try:
-        response = requests.post(f"{API_BASE_URL}/receipts/search", json=search_filters)
+        response = requests.post(f"{API_BASE_URL}/receipts/search", json={"vendor": "Walmart"})
         if response.status_code == 200:
             results = response.json()
             print(f"   Vendor search: Found {len(results)} Walmart receipts")
         else:
             print(f"   Vendor search failed: {response.status_code}")
+            # Print error details for debugging
+            try:
+                error_detail = response.json()
+                print(f"   Error details: {error_detail}")
+            except:
+                print(f"   Response text: {response.text}")
     except Exception as e:
         print(f"   Vendor search error: {e}")
     
     # Test 2: Search by amount range
     print("   Testing amount range search...")
-    search_filters = {"min_amount": 50.0, "max_amount": 200.0}
     try:
-        response = requests.post(f"{API_BASE_URL}/receipts/search", json=search_filters)
+        response = requests.post(f"{API_BASE_URL}/receipts/search", json={"min_amount": 50.0, "max_amount": 200.0})
         if response.status_code == 200:
             results = response.json()
             print(f"   Amount range search: Found {len(results)} receipts ($50-$200)")
         else:
             print(f"   Amount range search failed: {response.status_code}")
+            try:
+                error_detail = response.json()
+                print(f"   Error details: {error_detail}")
+            except:
+                print(f"   Response text: {response.text}")
     except Exception as e:
         print(f"   Amount range search error: {e}")
     
     # Test 3: Search by category
     print("   Testing category search...")
-    search_filters = {"category": "grocery"}
     try:
-        response = requests.post(f"{API_BASE_URL}/receipts/search", json=search_filters)
+        response = requests.post(f"{API_BASE_URL}/receipts/search", json={"category": "grocery"})
         if response.status_code == 200:
             results = response.json()
             print(f"   Category search: Found {len(results)} grocery receipts")
         else:
             print(f"   Category search failed: {response.status_code}")
+            try:
+                error_detail = response.json()
+                print(f"   Error details: {error_detail}")
+            except:
+                print(f"   Response text: {response.text}")
     except Exception as e:
         print(f"   Category search error: {e}")
 

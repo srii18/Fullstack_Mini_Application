@@ -25,13 +25,13 @@ python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 python -m streamlit run dashboard.py --server.port 8501
 ```
 
-## 🌐 Access Points
+## Access Points
 
 - **Frontend Dashboard**: http://localhost:8501
 - **Backend API**: http://localhost:8000
 - **API Documentation**: http://localhost:8000/docs
 
-## 📋 Features Available
+## Features Available
 
 ### Upload & Process
 - Drag and drop receipt files (.jpg, .png, .pdf, .txt)
@@ -58,7 +58,7 @@ python test_api.py
 python test_data_generator.py clear
 ```
 
-## 🛠️ Troubleshooting
+## Troubleshooting
 
 ### Port Already in Use
 If you get a port conflict error:
@@ -85,7 +85,7 @@ python -c "import os; os.remove('database.db') if os.path.exists('database.db') 
 python test_data_generator.py generate 20
 ```
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 ├── algorithms/              # Core algorithms (search, sort, aggregation)
@@ -98,12 +98,10 @@ python test_data_generator.py generate 20
 └── test_*.py               # Testing utilities
 ```
 
-## 🎯 Next Steps
+##  Next Steps
 
 1. **Upload your receipts** through the dashboard
 2. **Explore analytics** to understand spending patterns
 3. **Use search features** to find specific transactions
 4. **Customize categories** by editing `services/text_parser.py`
 5. **Add new features** using the modular architecture
-
-Happy receipt processing! 🧾✨
