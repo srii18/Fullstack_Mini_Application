@@ -2,24 +2,24 @@
 
 This document describes the advanced bonus features implemented in the Receipt Processing Application.
 
-## 🎯 Overview
+##  Overview
 
 The following bonus features have been successfully implemented:
 
-1. **✏️ Manual Correction of Parsed Fields** - Edit receipt data through the UI
-2. **📥 Export Data as CSV/JSON** - Export filtered receipt data 
-3. **💱 Multi-Currency Support** - Detect and convert between currencies
-4. **🌍 Multi-Language Processing** - Process receipts in multiple languages
+1. ** Manual Correction of Parsed Fields** - Edit receipt data through the UI
+2. ** Export Data as CSV/JSON** - Export filtered receipt data 
+3. ** Multi-Currency Support** - Detect and convert between currencies
+4. ** Multi-Language Processing** - Process receipts in multiple languages
 
 ---
 
-## ✏️ Manual Correction Feature
+##  Manual Correction Feature
 
 ### Description
 Allows users to manually correct any parsing errors in receipt data through an intuitive web interface.
 
 ### How to Use
-1. Navigate to **"✏️ Manual Correction"** page in the dashboard
+1. Navigate to **" Manual Correction"** page in the dashboard
 2. Select a receipt from the dropdown list
 3. View current parsed values on the left
 4. Make corrections in the form on the right
@@ -38,13 +38,13 @@ Allows users to manually correct any parsing errors in receipt data through an i
 
 ---
 
-## 📥 Export Data Feature
+##  Export Data Feature
 
 ### Description
 Export receipt data as CSV or JSON files with optional filtering and field selection.
 
 ### How to Use
-1. Navigate to **"📥 Export Data"** page in the dashboard
+1. Navigate to **" Export Data"** page in the dashboard
 2. Choose export format (CSV or JSON)
 3. Select fields to include in export
 4. Apply optional filters:
@@ -53,7 +53,7 @@ Export receipt data as CSV or JSON files with optional filtering and field selec
    - Amount range
    - Date range
 5. Preview filtered data
-6. Click **"📥 Export Data"** to generate file
+6. Click **" Export Data"** to generate file
 7. Download the generated file
 
 ### API Endpoints
@@ -79,7 +79,7 @@ Export receipt data as CSV or JSON files with optional filtering and field selec
 
 ---
 
-## 💱 Multi-Currency Support
+##  Multi-Currency Support
 
 ### Description
 Automatic detection of different currencies in receipts with conversion capabilities.
@@ -116,7 +116,7 @@ Automatic detection of different currencies in receipts with conversion capabili
 
 ---
 
-## 🌍 Multi-Language Processing
+##  Multi-Language Processing
 
 ### Description
 Enhanced OCR and text parsing to handle receipts in multiple languages.
@@ -154,7 +154,7 @@ Enhanced OCR and text parsing to handle receipts in multiple languages.
 
 ---
 
-## 🔧 Technical Implementation
+##  Technical Implementation
 
 ### Backend Enhancements
 - **New Schemas**: `ManualCorrectionRequest`, `ExportRequest`, `CurrencyInfo`
@@ -176,7 +176,7 @@ Enhanced OCR and text parsing to handle receipts in multiple languages.
 
 ---
 
-## 🚀 Getting Started with Bonus Features
+##  Getting Started with Bonus Features
 
 ### Prerequisites
 1. Ensure Tesseract OCR is installed with language packs:
@@ -217,7 +217,7 @@ Enhanced OCR and text parsing to handle receipts in multiple languages.
 
 ---
 
-## 📊 Performance Considerations
+##  Performance Considerations
 
 - **Caching**: Exchange rates cached for 1 hour
 - **Streaming**: Large exports use streaming responses
@@ -226,7 +226,7 @@ Enhanced OCR and text parsing to handle receipts in multiple languages.
 
 ---
 
-## 🔮 Future Enhancements
+##  Future Enhancements
 
 Potential improvements for the bonus features:
 
@@ -239,7 +239,7 @@ Potential improvements for the bonus features:
 
 ---
 
-## 🐛 Troubleshooting
+##  Troubleshooting
 
 ### Common Issues
 

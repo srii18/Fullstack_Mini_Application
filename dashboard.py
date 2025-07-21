@@ -9,7 +9,7 @@ import json
 # Configure Streamlit page
 st.set_page_config(
     page_title="Receipt Processing Dashboard",
-    page_icon="🧾",
+    page_icon="",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -114,11 +114,11 @@ def main():
     """Main dashboard application"""
     
     # Header
-    st.markdown('<h1 class="main-header">🧾 Receipt Processing Dashboard</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header"> Receipt Processing Dashboard</h1>', unsafe_allow_html=True)
     
     # Check API connection
     if not check_api_connection():
-        st.error("⚠️ Backend API is not running. Please start the FastAPI server first.")
+        st.error(" Backend API is not running. Please start the FastAPI server first.")
         st.code("uvicorn main:app --reload")
         return
     
@@ -126,20 +126,20 @@ def main():
     st.sidebar.title("Navigation")
     page = st.sidebar.selectbox(
         "Choose a page",
-        ["📤 Upload", "📋 View Receipts", "🔍 Search", "✏️ Manual Correction", "📥 Export Data", "📊 Analytics"]
+        ["Upload", "View Receipts", "Search", "Manual Correction", "Export Data", "Analytics"]
     )
     
-    if page == "📤 Upload":
+    if page == "Upload":
         upload_page()
-    elif page == "📋 View Receipts":
+    elif page == "View Receipts":
         view_receipts_page()
-    elif page == "🔍 Search":
+    elif page == "Search":
         search_page()
-    elif page == "✏️ Manual Correction":
+    elif page == "Manual Correction":
         manual_correction_page()
-    elif page == "📥 Export Data":
+    elif page == "Export Data":
         export_page()
-    elif page == "📊 Analytics":
+    elif page == "Analytics":
         analytics_page()
 
 def upload_page():
@@ -148,7 +148,7 @@ def upload_page():
     
     st.markdown("""
     <div class="upload-section">
-        <h3>📁 Upload your receipt or bill</h3>
+        <h3>Upload your receipt or bill</h3>
         <p>Supported formats: JPG, PNG, PDF, TXT</p>
     </div>
     """, unsafe_allow_html=True)
@@ -170,12 +170,12 @@ def upload_page():
             st.info(f"**Type:** {uploaded_file.type}")
         
         # Upload button
-        if st.button("🚀 Process Receipt", type="primary"):
+        if st.button(" Process Receipt", type="primary"):
             with st.spinner("Processing receipt..."):
                 result = upload_file(uploaded_file)
                 
                 if result:
-                    st.success("✅ Receipt processed successfully!")
+                    st.success(" Receipt processed successfully!")
                     
                     # Display extracted data
                     st.subheader("Extracted Information")
@@ -205,7 +205,7 @@ def upload_page():
                             st.text(result['raw_text'])
                 
                 else:
-                    st.error("❌ Failed to process receipt. Please try again.")
+                    st.error(" Failed to process receipt. Please try again.")
 
 def view_receipts_page():
     """View all receipts page"""
@@ -308,7 +308,7 @@ def search_page():
         with col4:
             sort_direction = st.selectbox("Direction", ["Ascending", "Descending"])
         
-        search_button = st.form_submit_button("🔍 Search", type="primary")
+        search_button = st.form_submit_button(" Search", type="primary")
     
     if search_button:
         # Prepare search filters
@@ -366,11 +366,11 @@ def search_page():
 
 def manual_correction_page():
     """Manual correction page for editing receipt fields"""
-    st.header("✏️ Manual Field Correction")
+    st.header(" Manual Field Correction")
     
     st.markdown("""
     <div class="upload-section">
-        <h3>🔧 Correct Receipt Data</h3>
+        <h3> Correct Receipt Data</h3>
         <p>Select a receipt and manually correct any parsing errors</p>
     </div>
     """, unsafe_allow_html=True)
@@ -447,25 +447,25 @@ def manual_correction_page():
                     if correction_data:
                         result = apply_manual_correction(selected_receipt['id'], correction_data)
                         if result:
-                            st.success("✅ Corrections applied successfully!")
+                            st.success(" Corrections applied successfully!")
                             st.rerun()
                         else:
-                            st.error("❌ Failed to apply corrections. Please try again.")
+                            st.error(" Failed to apply corrections. Please try again.")
                     else:
                         st.warning("No changes detected.")
         
         # Display raw text for reference
         if selected_receipt.get('raw_text'):
-            with st.expander("📄 View Raw Text (for reference)"):
+            with st.expander(" View Raw Text (for reference)"):
                 st.text(selected_receipt['raw_text'])
 
 def export_page():
     """Export data page"""
-    st.header("📥 Export Receipt Data")
+    st.header(" Export Receipt Data")
     
     st.markdown("""
     <div class="upload-section">
-        <h3>💾 Export Your Data</h3>
+        <h3> Export Your Data</h3>
         <p>Export receipt data as CSV or JSON with optional filtering</p>
     </div>
     """, unsafe_allow_html=True)
@@ -482,7 +482,7 @@ def export_page():
         selected_fields = st.multiselect("Fields to Include:", available_fields, default=['id', 'filename', 'vendor', 'transaction_date', 'amount', 'category'])
     
     # Filters section
-    st.subheader("🔍 Export Filters (Optional)")
+    st.subheader(" Export Filters (Optional)")
     
     filter_col1, filter_col2, filter_col3 = st.columns(3)
     
@@ -514,7 +514,7 @@ def export_page():
         filters['end_date'] = filter_end_date.isoformat()
     
     # Export button
-    if st.button("📥 Export Data", type="primary"):
+    if st.button(" Export Data", type="primary"):
         with st.spinner("Generating export..."):
             export_data = export_receipts(
                 export_format=export_format,
@@ -527,17 +527,17 @@ def export_page():
                 mime_type = "text/csv" if export_format == "csv" else "application/json"
                 
                 st.download_button(
-                    label=f"💾 Download {export_format.upper()} File",
+                    label=f" Download {export_format.upper()} File",
                     data=export_data,
                     file_name=filename,
                     mime=mime_type
                 )
-                st.success(f"✅ Export ready! Click the download button above to save your {export_format.upper()} file.")
+                st.success(f" Export ready! Click the download button above to save your {export_format.upper()} file.")
             else:
-                st.error("❌ Export failed. Please try again.")
+                st.error(" Export failed. Please try again.")
     
     # Preview section
-    st.subheader("👀 Data Preview")
+    st.subheader(" Data Preview")
     receipts = get_receipts()
     if receipts:
         # Apply filters for preview
@@ -568,7 +568,7 @@ def export_page():
 
 def analytics_page():
     """Analytics and visualizations page"""
-    st.header("📊 Analytics Dashboard")
+    st.header(" Analytics Dashboard")
     
     analytics = get_analytics()
     
@@ -577,7 +577,7 @@ def analytics_page():
         return
     
     # Basic Statistics
-    st.subheader("📈 Basic Statistics")
+    st.subheader(" Basic Statistics")
     basic_stats = analytics.get('basic_statistics', {})
     
     col1, col2, col3, col4 = st.columns(4)
@@ -591,7 +591,7 @@ def analytics_page():
         st.metric("Median Amount", f"${basic_stats.get('median_amount', 0):.2f}")
     
     # Vendor Analysis
-    st.subheader("🏪 Top Vendors")
+    st.subheader(" Top Vendors")
     top_vendors = analytics.get('top_vendors', [])
     
     if top_vendors:
@@ -626,7 +626,7 @@ def analytics_page():
                 st.plotly_chart(fig_pie, use_container_width=True)
     
     # Category Analysis
-    st.subheader("📂 Category Analysis")
+    st.subheader(" Category Analysis")
     category_dist = analytics.get('category_distribution', [])
     
     if category_dist:
@@ -657,7 +657,7 @@ def analytics_page():
             st.plotly_chart(fig_cat_pie, use_container_width=True)
     
     # Time Series Analysis
-    st.subheader("📅 Spending Trends")
+    st.subheader(" Spending Trends")
     monthly_trends = analytics.get('monthly_trends', [])
     
     if monthly_trends:
@@ -697,7 +697,7 @@ def analytics_page():
     # Daily Patterns
     daily_patterns = analytics.get('daily_patterns', [])
     if daily_patterns:
-        st.subheader("📊 Daily Spending Patterns")
+        st.subheader(" Daily Spending Patterns")
         daily_df = pd.DataFrame(daily_patterns)
         
         fig_daily = px.bar(
@@ -713,7 +713,7 @@ def analytics_page():
     # Amount Distribution
     amount_histogram = analytics.get('amount_histogram', [])
     if amount_histogram:
-        st.subheader("💰 Amount Distribution")
+        st.subheader(" Amount Distribution")
         hist_df = pd.DataFrame(amount_histogram)
         
         fig_hist = px.bar(

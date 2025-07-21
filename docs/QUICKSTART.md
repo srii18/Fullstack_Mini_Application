@@ -1,6 +1,6 @@
 # Quick Start Guide
 
-## 🚀 Getting Started in 3 Steps
+##  Getting Started in 3 Steps
 
 ### Step 1: Install Dependencies
 ```bash
